@@ -43,6 +43,7 @@ class _Motor:
     def __init__(self, register: int) -> None:
         if register not in [_LEFT_MOTOR_REG, _RIGHT_MOTOR_REG]:
             raise ValueError('Unsupported motor register value: {}'.format(register))
+        self._register = bytes((register,))
         self._buffer = bytearray(3)
         self._buffer[_M_REG_I] = register
         self._buffer[_M_DIR_I] = FORWARD
@@ -72,7 +73,9 @@ class _Motor:
             int: speed within a range of 0 (MIN_MOTOR_SPEED) 
                 to 255 (MAX_MOTOR_SPEED)
         """
-        return self._buffer[_M_SPEED_I]
+        i2c.write(I2C_ADDR, self._register)
+        response = i2c.read(I2C_ADDR, 2)
+        return response[_M_SPEED_I - 1]
     
     def _move(self, direction: MotorDirection, speed: MotorSpeed) -> None:
         """ Auxiliary function. Do not use externally! """
@@ -128,7 +131,9 @@ class _Motor:
             Returns:
             MotorDirection: FORWARD or BACKWARD
         """
-        return self._buffer[_M_DIR_I]
+        i2c.write(I2C_ADDR, self._register)
+        response = i2c.read(I2C_ADDR, 2)
+        return response[_M_DIR_I - 1]
 
 # Motor control constants
 TURN_SHARPNESS_MIN: int = const(1)
