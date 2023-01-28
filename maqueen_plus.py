@@ -3,7 +3,7 @@
 # (see https://www.dfrobot.com/product-2487.html)
 #
 # Author: Peter Almásy, https://github.com/almasy/micropython-maqueen-plus
-# Version: 0.3.0
+# Version: 0.3.1
 # License: MIT License
 
 from micropython import const
@@ -28,6 +28,7 @@ BACKWARD: MotorDirection = const(1)
 MotorSpeed = int
 MIN_MOTOR_SPEED: MotorSpeed = const(0)
 MAX_MOTOR_SPEED: MotorSpeed = const(255)
+MOTOR_SPEED_IGNORE: MotorSpeed = const(-1)
 
 _LEFT_MOTOR_REG: int = const(0x00)
 _RIGHT_MOTOR_REG: int = const(0x02)
@@ -85,7 +86,7 @@ class _Motor:
         if send_change:
             i2c.write(I2C_ADDR, self._buffer)
 
-    def forwards(self, speed: MotorSpeed = -1) -> None:
+    def forwards(self, speed: MotorSpeed = MOTOR_SPEED_IGNORE) -> None:
         """
             Sets motor's direction to 'forward' and, if 
             a speed value is provided and it's within a range
@@ -132,7 +133,7 @@ class _Motor:
 # Motor control constants
 TURN_SHARPNESS_MIN: int = const(1)
 TURN_SHARPNESS_MAX: int = const(20)
-_TURN_TO_RATIO: int = const(10)
+_TURN_TO_RATIO: int = const(10) # used for conversion
 
 class _Motors:
     """ Class aggregating both robot motors. Provides some convenience functions. """
@@ -319,7 +320,7 @@ class _LineSensor:
         """
         i2c.write(I2C_ADDR, self._register)
         value = i2c.read(I2C_ADDR, 2)
-        return value[0] << 8 | value[1]
+        return value[1] << 8 | value[0]
 
 
 class _LineSensors:
@@ -384,7 +385,7 @@ _TIME_TO_DISTANCE = const(59) # == 1 / (0.034 / 2)
     as the sensor measures the sound wave roundtrip.
 """
 _MAX_DISTANCE_CM = const(500)
-_MAX_PULSE_TIMEOUT = const(29500) # == 500 * 59
+_MAX_PULSE_TIMEOUT = const(29500) # == 500 * 59 microseconds
 """ Limit distance to approx 5 meters """
 _MIN_TRIGGER_TIME = const(10) # microseconds
 
