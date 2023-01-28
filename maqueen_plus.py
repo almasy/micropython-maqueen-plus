@@ -101,7 +101,7 @@ class _Motor:
         """
         self._move(FORWARD, speed)
 
-    def backwards(self, speed: MotorSpeed = -1) -> None:
+    def backwards(self, speed: MotorSpeed = MOTOR_SPEED_IGNORE) -> None:
         """
             Sets motor's direction to 'backward' and, if 
             a speed value is provided and it's within a range
@@ -426,8 +426,10 @@ class _DistanceSensor:
         self._trigPin.write_digital(0)
         pulse = time_pulse_us(self._echoPin, 1, _MAX_PULSE_TIMEOUT)
         distance = int(pulse / _TIME_TO_DISTANCE + 0.5)
-        if  distance < 0 or distance > _MAX_DISTANCE_CM:
+        if  distance < 0:
             distance = 0
+        elif distance > _MAX_DISTANCE_CM:
+            distance = _MAX_DISTANCE_CM
         return distance
 
 
