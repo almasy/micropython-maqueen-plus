@@ -8,7 +8,7 @@ BBC Micro:bit Micropython driver library for DFRobot's [Maqueen Plus 2.0](https:
 - [Micropython for Micro:bit v2.x](https://github.com/microbit-foundation/micropython-microbit-v2/releases/) installed on the Micro:bit board
 - Maqueen Plus 2.0 robot
   - [18650 battery version](https://www.dfrobot.com/product-2487.html)
-  - [Ni MH rechargeable batteries version](https://www.dfrobot.com/product-2487.html)
+  - [Ni MH rechargeable batteries version](https://www.dfrobot.com/product-2026.html)
 - Micropython development tools (see [Usage section](#usage))
 
 Earlier versions of Micro:bit boards (e.g. v1.5) are very unlikely to work due to the extremely low RAM they come equipped with (compared to v2.x).
