@@ -140,6 +140,14 @@ TURN_SHARPNESS_MIN: int = const(1)
 TURN_SHARPNESS_MAX: int = const(20)
 _TURN_TO_RATIO: int = const(10) # used for conversion
 
+def _assure_range(val: int, min: int, max: int) -> int:
+    """ Auxiliary function. Don't use externally! """
+    if val < min:
+        val = min
+    elif val > max:
+        val = max
+    return val
+
 class _Motors:
     """ Class aggregating both robot motors. Provides some convenience functions. """
 
@@ -158,11 +166,7 @@ class _Motors:
 
     def _percentage_to_speed(self, percentage: int) -> int:
         """ Auxiliary function. Don't use externally! """
-        if percentage < 0:
-            return 0
-        if percentage > 100:
-            percentage = 100
-        return int(MAX_MOTOR_SPEED * percentage / 100 + 0.5)
+        return int(MAX_MOTOR_SPEED * _assure_range(percentage, 0, 100) / 100 + 0.5)
 
     def forwards(self, percentage: int) -> None:
         """
@@ -197,10 +201,7 @@ class _Motors:
 
     def _turn_ratio(self, sharpness: int) -> 'tuple[float, bool]':
         """ Auxiliary function. Don't use externally! """
-        if sharpness < TURN_SHARPNESS_MIN:
-            sharpness = TURN_SHARPNESS_MIN
-        elif sharpness > TURN_SHARPNESS_MAX:
-            sharpness = TURN_SHARPNESS_MAX
+        sharpness = _assure_range(sharpness, TURN_SHARPNESS_MIN, TURN_SHARPNESS_MAX)
         ratio = (TURN_SHARPNESS_MAX / 2 - sharpness) / _TURN_TO_RATIO
         if ratio < 0:
             reverse = True
