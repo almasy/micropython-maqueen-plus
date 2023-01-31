@@ -2,7 +2,7 @@
 # library.
 #
 # The code will check the robot for readiness and then will
-# alternate robot's left and right front LEDs blinking for 
+# alternate robot's left and right headlight LEDs blinking for 
 # 15 seconds.
 
 from microbit import display, sleep, Image
@@ -15,7 +15,7 @@ while not maqueen_plus.is_ready():
 display.show(Image.HAPPY)
 sleep(250)
 
-lights = maqueen_plus.front_lights
+lights = maqueen_plus.headlights
 for _ in range(15):
     lights.left.on()
     sleep(500)

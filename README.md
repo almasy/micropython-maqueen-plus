@@ -82,7 +82,7 @@ After a successful initialization, a full range of robot features is available. 
     - `middle` also available as `line[2]`
     - `left1` also available as `line[3]`
     - `left2` also available as `line[4]`
-- `front_lights`
+- `headlights`
   - `right`
   - `left`
 - `chassis_RGBs` four NeoPixel RGBs
@@ -91,7 +91,7 @@ After a successful initialization, a full range of robot features is available. 
   - `chassis_RGBs[2]` located at back right side
   - `chassis_RGBs[3]` located at front right side
 
-Simple front LED blinking example
+Simple headlights LED blinking example
 
 ```python
 from microbit import display, sleep, Image
@@ -104,7 +104,7 @@ while not maqueen_plus.is_ready():
 display.show(Image.HAPPY)
 sleep(250)
 
-lights = maqueen_plus.front_lights
+lights = maqueen_plus.headlights
 for _ in range(15):
     lights.left.on()
     sleep(500)

@@ -245,12 +245,12 @@ class _Motors:
         self._turn(sharpness, self.left, self.right)
 
 
-# Front LED related constants
+# Headlights LED related constants
 _LEFT_LED_REG: int = const(0x0B)
 _RIGHT_LED_REG: int = const(0x0C)
 
 class _LED:
-    """ Front LED driver class. Contains elementary LED functions."""
+    """ Headlight LED driver class. Contains elementary LED functions."""
 
     def __init__(self, register: int) -> None:
         if register not in [_LEFT_LED_REG, _RIGHT_LED_REG]:
@@ -259,30 +259,30 @@ class _LED:
         self._buffer[0] = register
     
     def on(self) -> None:
-        """ Turns front LED on. """
+        """ Turns headlight LED on. """
         self._buffer[1] = 1
         i2c.write(I2C_ADDR, self._buffer)
     
     def off(self) -> None:
-        """ Turns front LED off. """
+        """ Turns headlight LED off. """
         self._buffer[1] = 0
         i2c.write(I2C_ADDR, self._buffer)
 
 
-class _FrontLights:
-    """ Class aggregating robot's front LEDs. Provides some convenience functions. """
+class _Headlights:
+    """ Class aggregating robot's headlight LEDs. Provides some convenience functions. """
 
     def __init__(self) -> None:
         self.left = _LED(_LEFT_LED_REG)
         self.right = _LED(_RIGHT_LED_REG)
 
     def on(self) -> None:
-        """ Turns all robots front LEDs on. """
+        """ Turns all robots headlight LEDs on. """
         self.left.on()
         self.right.on()
 
     def off(self) -> None:
-        """ Turns all robots front LEDs off. """
+        """ Turns all robots headlight LEDs off. """
         self.left.off()
         self.right.off()
 
@@ -457,7 +457,7 @@ class _MaqueenPlus:
     def __init__(self) -> None:
         self.motors = _Motors()
         self.sensors = _Sensors()
-        self.front_lights = _FrontLights()
+        self.headlights = _Headlights()
         self.chassis_RGBs = NeoPixel(CHASSIS_RGB_PIN, _RGB_LED_CNT)
 
     def is_ready(self) -> bool:
