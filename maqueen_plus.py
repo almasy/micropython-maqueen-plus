@@ -3,7 +3,7 @@
 # (see https://www.dfrobot.com/product-2487.html)
 #
 # Author: Peter Almásy, https://github.com/almasy/micropython-maqueen-plus
-# Version: 0.3.1
+# Version: 0.3.2
 # License: MIT License
 
 from micropython import const
@@ -41,7 +41,7 @@ class _Motor:
     """ Motor driver class. Contains elementary motor functions. """
 
     def __init__(self, register: int) -> None:
-        if register not in [_LEFT_MOTOR_REG, _RIGHT_MOTOR_REG]:
+        if register not in (_LEFT_MOTOR_REG, _RIGHT_MOTOR_REG):
             raise ValueError('Unsupported motor register value: {}'.format(register))
         self._register = bytes((register,))
         self._buffer = bytearray(3)
@@ -135,12 +135,14 @@ class _Motor:
         response = i2c.read(I2C_ADDR, 2)
         return response[_M_DIR_I - 1]
 
+
 # Motor control constants
 TURN_SHARPNESS_MIN: int = const(1)
 TURN_SHARPNESS_MAX: int = const(20)
 _TURN_TO_RATIO: int = const(10) # used for conversion
+_MAX_COMP_PERCENT: int = const(25)
 
-def _assure_range(val: int, min: int, max: int) -> int:
+def _constrain(val: int, min: int, max: int) -> int:
     """ Auxiliary function. Don't use externally! """
     if val < min:
         val = min
@@ -154,19 +156,42 @@ class _Motors:
     def __init__(self) -> None:
         self.left = _Motor(_LEFT_MOTOR_REG)
         self.right = _Motor(_RIGHT_MOTOR_REG)
+        self._comp_left = 1.0
+        self._comp_right = 1.0
 
-    def compensate(self, left: int = 0, right: int = 0) -> None:
-        """ T.B.D. """
-        pass
+    def compensate_left(self, percentage: int) -> None:
+        """
+            Makes sure the left motor speed is always slightly faster
+            (by given percentage) to compensate for an uneven right motor 
+            calibration. Use this function if your robot turns slightly
+            RIGHT when it should go straight.
+            
+            Given percentage value should be within 0 to 25.
+        """
+        self._comp_left = 1.0
+        self._comp_right = 1.0 - _constrain(percentage, 0, _MAX_COMP_PERCENT) / 100
+
+    def compensate_right(self, percentage: int) -> None:
+        """
+            Makes sure the right motor speed is always slightly faster
+            (by given percentage) to compensate for an uneven left motor 
+            calibration. Use this function if your robot turns slightly
+            LEFT when it should go straight.
+            
+            Given percentage value should be within 0 to 25.
+        """
+        self._comp_right = 1.0
+        self._comp_left = 1.0 - _constrain(percentage, 0, _MAX_COMP_PERCENT) / 100
 
     def stop(self) -> None:
         """ Stops both robot's motors immediately. """
         self.left.set_speed(0)
         self.right.set_speed(0)
 
-    def _percentage_to_speed(self, percentage: int) -> int:
+    @staticmethod
+    def _percentage_to_speed(percentage: float) -> int:
         """ Auxiliary function. Don't use externally! """
-        return int(MAX_MOTOR_SPEED * _assure_range(percentage, 0, 100) / 100 + 0.5)
+        return int(MAX_MOTOR_SPEED * _constrain(int(percentage + 0.5), 0, 100) / 100 + 0.5)
 
     def forwards(self, percentage: int) -> None:
         """
@@ -177,9 +202,8 @@ class _Motors:
             E.g. percentage = 100 will yield motor speed of 255 
             (MAX_MOTOR_SPEED), percentage = 50 will set speed to 128. 
         """
-        speed = self._percentage_to_speed(percentage)
-        self.left.forwards(speed)
-        self.right.forwards(speed)
+        self.left.forwards(_Motors._percentage_to_speed(percentage * self._comp_left))
+        self.right.forwards(_Motors._percentage_to_speed(percentage * self._comp_right))
 
     def backwards(self, percentage: int) -> None:
         """
@@ -190,33 +214,27 @@ class _Motors:
             E.g. percentage = 100 will yield motor speed of 255 
             (MAX_MOTOR_SPEED), percentage = 50 will set speed to 128. 
         """
-        speed = self._percentage_to_speed(percentage)
-        self.left.backwards(speed)
-        self.right.backwards(speed)
+        self.left.backwards(_Motors._percentage_to_speed(percentage * self._comp_left))
+        self.right.backwards(_Motors._percentage_to_speed(percentage * self._comp_right))
 
     def reverse(self) -> None:
         """ Flips direction of both robot's motors. """
         self.left.reverse()
         self.right.reverse()
 
-    def _turn_ratio(self, sharpness: int) -> 'tuple[float, bool]':
+    @staticmethod
+    def _turn(sharpness: int, keep: _Motor, adjust: _Motor) -> None:
         """ Auxiliary function. Don't use externally! """
-        sharpness = _assure_range(sharpness, TURN_SHARPNESS_MIN, TURN_SHARPNESS_MAX)
+        reverse = keep.get_direction != adjust.get_direction()
+        sharpness = _constrain(sharpness, TURN_SHARPNESS_MIN, TURN_SHARPNESS_MAX)
         ratio = (TURN_SHARPNESS_MAX / 2 - sharpness) / _TURN_TO_RATIO
         if ratio < 0:
-            reverse = True
             ratio = -ratio
-        else:
-            reverse = False
-        return (ratio, reverse)
-
-    def _turn(self, sharpness: int, keep: _Motor, adjust: _Motor):
-        """ Auxiliary function. Don't use externally! """
-        ratio, reverse = self._turn_ratio(sharpness)
+            reverse = not reverse
         if reverse:
             adjust.reverse()
         adjust.set_speed(int(keep.get_speed() * ratio))
-    
+
     def turn_left(self, sharpness: int) -> None:
         """ 
             Adjusts the speed of left motor proportionally to the speed
@@ -227,9 +245,7 @@ class _Motors:
             The minimal turn sharpness is 1 (TURN_SHARPNESS_MIN), the maximal 
             is 20 (TURN_SHARPNESS_MAX)
         """
-        if self.right.get_direction() != self.left.get_direction():
-            self.left.reverse()
-        self._turn(sharpness, self.right, self.left)
+        _Motors._turn(sharpness, self.right, self.left)
 
     def turn_right(self, sharpness: int) -> None:
         """ 
@@ -241,9 +257,7 @@ class _Motors:
             The minimal turn sharpness is 1 (TURN_SHARPNESS_MIN), the maximal 
             is 20 (TURN_SHARPNESS_MAX)
         """
-        if self.right.get_direction() != self.left.get_direction():
-            self.right.reverse()
-        self._turn(sharpness, self.left, self.right)
+        _Motors._turn(sharpness, self.left, self.right)
 
 
 # Headlights LED related constants
@@ -254,7 +268,7 @@ class _LED:
     """ Headlight LED driver class. Contains elementary LED functions."""
 
     def __init__(self, register: int) -> None:
-        if register not in [_LEFT_LED_REG, _RIGHT_LED_REG]:
+        if register not in (_LEFT_LED_REG, _RIGHT_LED_REG):
             raise ValueError('Unsupported LED register value: {}'.format(register))
         self._buffer = bytearray(2)
         self._buffer[0] = register
@@ -328,7 +342,7 @@ class _LineSensor:
         value = i2c.read(I2C_ADDR, 2)
         return value[1] << 8 | value[0]
 
-
+_SENSOR_NAME_ERROR = "Unknown '_LineSensor' name '{}'"
 class _LineSensors:
     """ 
         Class aggregating all robot's line tracking sensors. Allows 
@@ -365,13 +379,13 @@ class _LineSensors:
             raise KeyError("'_LineSensors' doesn't support key type '{}'".format(type(key)))
         if sensor := self._find_sensor(key):
             return sensor
-        raise KeyError("Unknown '_LineSensor' name '{}'".format(key))
+        raise KeyError(_SENSOR_NAME_ERROR.format(key))
 
     def __getattr__(self, name: str) -> _LineSensor:
         """ Allow access to individual sensors via their names. """
         if sensor := self._find_sensor(name):
             return sensor
-        raise AttributeError("Unknown '_LineSensor' name '{}'".format(name))
+        raise AttributeError(_SENSOR_NAME_ERROR.format(name))
 
     def __len__(self) -> int:
         """ Provide proper length of sensor sequence. """
@@ -427,11 +441,7 @@ class _DistanceSensor:
         self._trigPin.write_digital(0)
         pulse = time_pulse_us(self._echoPin, 1, _MAX_PULSE_TIMEOUT)
         distance = int(pulse / _TIME_TO_DISTANCE + 0.5)
-        if  distance < 0:
-            distance = 0
-        elif distance > _MAX_DISTANCE_CM:
-            distance = _MAX_DISTANCE_CM
-        return distance
+        return _constrain(distance, 0, _MAX_DISTANCE_CM)
 
 
 class _InfraReceiver:
